@@ -45,10 +45,13 @@ def _cmd_apple(args) -> int:
 
 
 def _cmd_mix(args) -> int:
+    import os
+
     a = Profile.load(args.a)
     b = Profile.load(args.b)
     result = blend_profiles(a, b, limit=args.limit)
     print(result.summary())
+
     if args.output:
         import json
         with open(args.output, "w", encoding="utf-8") as f:
@@ -59,6 +62,34 @@ def _cmd_mix(args) -> int:
                 "playlist": result.playlist,
             }, f, indent=2, ensure_ascii=False)
         print(f"\nblend: wrote {args.output}")
+
+    if args.to_spotify:
+        client_id = args.client_id or os.environ.get("SPOTIFY_CLIENT_ID")
+        if not client_id:
+            print("blend: --to-spotify needs --client-id (or SPOTIFY_CLIENT_ID).",
+                  file=sys.stderr)
+            return 2
+        from .playlist import spotify_export
+        try:
+            info = spotify_export(result, client_id, name=args.name, public=args.public)
+        except RuntimeError as exc:
+            print(f"blend: Spotify export failed: {exc}", file=sys.stderr)
+            return 1
+        print(f"\nSpotify playlist: {info['url']}  "
+              f"({info['added']} added, {len(info['missed'])} not found)")
+        for m in info["missed"]:
+            print(f"  not found: {m}")
+
+    if args.to_apple:
+        from .playlist import apple_export
+        try:
+            info = apple_export(result, name=args.name)
+        except RuntimeError as exc:
+            print(f"blend: Apple Music export failed: {exc}", file=sys.stderr)
+            return 1
+        print(f"\nApple Music playlist '{info['playlist']}' created "
+              f"({info['attempted']} tracks attempted from your library).")
+
     return 0
 
 
@@ -111,6 +142,15 @@ def main(argv: list[str] | None = None) -> int:
     p_mix.add_argument("b", help="second profile.json")
     p_mix.add_argument("--limit", type=int, default=30, help="blend playlist size")
     p_mix.add_argument("-o", "--output", help="write the blend (score + playlist) as JSON")
+    p_mix.add_argument("--to-spotify", action="store_true",
+                       help="create the blend as a Spotify playlist")
+    p_mix.add_argument("--to-apple", action="store_true",
+                       help="create the blend as an Apple Music playlist (macOS)")
+    p_mix.add_argument("--client-id", help="Spotify client ID for --to-spotify "
+                       "(or set SPOTIFY_CLIENT_ID)")
+    p_mix.add_argument("--public", action="store_true",
+                       help="make the Spotify playlist public (default: private)")
+    p_mix.add_argument("--name", help="playlist name (default: 'blend: A × B')")
     p_mix.set_defaults(func=_cmd_mix)
 
     p_spotify = sub.add_parser("spotify", help="build a profile from Spotify (OAuth)")

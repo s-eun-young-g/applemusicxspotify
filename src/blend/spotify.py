@@ -43,7 +43,8 @@ from .profile import Artist, Profile, Track, normalize_weights
 _AUTH_URL = "https://accounts.spotify.com/authorize"
 _TOKEN_URL = "https://accounts.spotify.com/api/token"
 _API = "https://api.spotify.com/v1"
-_SCOPES = "user-top-read"
+# One consent covers both reading taste and writing a blend playlist back.
+_SCOPES = "user-top-read playlist-modify-public playlist-modify-private"
 _DEFAULT_REDIRECT = "http://127.0.0.1:8888/callback"
 _CACHE = os.path.expanduser("~/.config/blend/spotify-token.json")
 
@@ -145,6 +146,21 @@ def _api_get(token: str, path: str, params: dict) -> dict:
                            f"{exc.read().decode()}") from exc
 
 
+def _api_post(token: str, path: str, body: dict) -> dict:
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(
+        f"{_API}{path}", data=data, method="POST",
+        headers={"Authorization": f"Bearer {token}",
+                 "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req) as resp:
+            raw = resp.read()
+            return json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"Spotify API error {exc.code} on {path}: "
+                           f"{exc.read().decode()}") from exc
+
+
 def _capture_code(redirect_uri: str, expected_state: str, open_browser) -> str:
     """Run a one-shot loopback server, open the browser, return the auth code."""
     parsed = urllib.parse.urlparse(redirect_uri)
@@ -241,15 +257,19 @@ def _save_cache(token: dict) -> None:
         json.dump(token, f)
 
 
-def _valid_token(client_id: str) -> str:
-    """Return a usable access token, reusing/refreshing the cache when possible."""
+def _valid_token(client_id: str, scopes: str = _SCOPES) -> str:
+    """Return a usable access token covering `scopes`, reusing/refreshing the
+    cache when possible and re-authorizing only if it lacks a needed scope."""
+    required = set(scopes.split())
     token = _load_cache()
-    if token and token.get("expires_at", 0) > time.time():
-        return token["access_token"]
-    if token and token.get("refresh_token"):
-        token = refresh(client_id, token["refresh_token"])
-    else:
-        token = authorize(client_id)
+    if token and required <= set((token.get("scope") or "").split()):
+        if token.get("expires_at", 0) > time.time():
+            return token["access_token"]
+        if token.get("refresh_token"):
+            token = refresh(client_id, token["refresh_token"])
+            _save_cache(token)
+            return token["access_token"]
+    token = authorize(client_id, scopes=scopes)
     _save_cache(token)
     return token["access_token"]
 

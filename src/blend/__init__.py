@@ -14,7 +14,7 @@ from .profile import Artist, Profile, Track
 __all__ = ["Profile", "Track", "Artist", "blend", "BlendResult",
            "read_apple", "read_spotify"]
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 def read_apple(path: str, user: str) -> Profile:

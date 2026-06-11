@@ -126,7 +126,8 @@ def _build_playlist(a: Profile, b: Profile, pairs, limit: int) -> list[dict]:
         if k in seen:
             return
         seen.add(k)
-        out.append({"title": track.title, "artist": track.artist, "origin": origin})
+        out.append({"title": track.title, "artist": track.artist, "origin": origin,
+                    "isrc": track.isrc, "duration_ms": track.duration_ms})
 
     # 1) Songs you both love, strongest combined affinity first.
     for ta, tb in sorted(pairs, key=lambda p: (p[0].weight + p[1].weight), reverse=True):

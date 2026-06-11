@@ -17,6 +17,10 @@ blend spotify --user friend --client-id <your-id> -o friend.json
 
 # blend any two profiles — Apple×Apple or Spotify×Apple
 blend mix sofia.json friend.json
+
+# …and turn the blend into a real playlist
+blend mix sofia.json friend.json --to-spotify --client-id <your-id>
+blend mix sofia.json friend.json --to-apple        # macOS, into your Music app
 ```
 
 ```
@@ -89,8 +93,9 @@ leaves your machine. Reads `user-top-read` only.
 - **M1 — Spotify reader (done):** PKCE loopback OAuth, bring-your-own client ID →
   the same profile shape, so **Spotify×Apple** blends fall out for free (matched
   on ISRC + normalized title). No server, no shared user cap, no client secret.
-- **M2 — playlist export:** push the blend to Spotify (`playlist-modify`) and to
-  Apple Music (via AppleScript).
+- **M2 — playlist export (done):** `blend mix … --to-spotify` resolves each track
+  (ISRC-exact when possible) and creates a Spotify playlist; `--to-apple`
+  generates an AppleScript that builds the playlist from your local Music library.
 - **M3 — UX:** a small web visualizer for two uploaded profiles.
 
 ## Why no "audio vibe" blend
