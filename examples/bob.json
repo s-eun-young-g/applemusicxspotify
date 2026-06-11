@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "source": "apple",
+  "user": "bob",
+  "tracks": [
+    {
+      "title": "Motion Sickness",
+      "artist": "Phoebe Bridgers",
+      "album": "",
+      "duration_ms": 0,
+      "isrc": null,
+      "play_count": 0,
+      "weight": 1.0
+    },
+    {
+      "title": "White Winter Hymnal",
+      "artist": "Fleet Foxes",
+      "album": "",
+      "duration_ms": 0,
+      "isrc": null,
+      "play_count": 0,
+      "weight": 0.9
+    },
+    {
+      "title": "Nobody",
+      "artist": "Mitski",
+      "album": "",
+      "duration_ms": 0,
+      "isrc": null,
+      "play_count": 0,
+      "weight": 0.6
+    },
+    {
+      "title": "One Dance",
+      "artist": "Drake",
+      "album": "",
+      "duration_ms": 0,
+      "isrc": null,
+      "play_count": 0,
+      "weight": 0.5
+    },
+    {
+      "title": "Pink + White",
+      "artist": "Frank Ocean",
+      "album": "",
+      "duration_ms": 0,
+      "isrc": null,
+      "play_count": 0,
+      "weight": 0.45
+    }
+  ],
+  "artists": [
+    {
+      "name": "Phoebe Bridgers",
+      "weight": 1.0,
+      "genres": [
+        "indie"
+      ]
+    },
+    {
+      "name": "Fleet Foxes",
+      "weight": 0.9,
+      "genres": [
+        "folk"
+      ]
+    },
+    {
+      "name": "Mitski",
+      "weight": 0.6,
+      "genres": [
+        "indie"
+      ]
+    },
+    {
+      "name": "Drake",
+      "weight": 0.5,
+      "genres": [
+        "rap"
+      ]
+    },
+    {
+      "name": "Frank Ocean",
+      "weight": 0.45,
+      "genres": [
+        "rnb"
+      ]
+    }
+  ],
+  "genres": {
+    "indie": 1.0,
+    "folk": 0.9,
+    "rap": 0.5,
+    "rnb": 0.45
+  }
+}

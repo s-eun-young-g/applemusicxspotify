@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "source": "apple",
+  "user": "alice",
+  "tracks": [
+    {
+      "title": "Motion Sickness",
+      "artist": "Phoebe Bridgers",
+      "album": "",
+      "duration_ms": 0,
+      "isrc": null,
+      "play_count": 0,
+      "weight": 1.0
+    },
+    {
+      "title": "Paul",
+      "artist": "Big Thief",
+      "album": "",
+      "duration_ms": 0,
+      "isrc": null,
+      "play_count": 0,
+      "weight": 0.8
+    },
+    {
+      "title": "Nobody",
+      "artist": "Mitski",
+      "album": "",
+      "duration_ms": 0,
+      "isrc": null,
+      "play_count": 0,
+      "weight": 0.7
+    },
+    {
+      "title": "Holocene",
+      "artist": "Bon Iver",
+      "album": "",
+      "duration_ms": 0,
+      "isrc": null,
+      "play_count": 0,
+      "weight": 0.5
+    },
+    {
+      "title": "Good Days",
+      "artist": "SZA",
+      "album": "",
+      "duration_ms": 0,
+      "isrc": null,
+      "play_count": 0,
+      "weight": 0.4
+    }
+  ],
+  "artists": [
+    {
+      "name": "Phoebe Bridgers",
+      "weight": 1.0,
+      "genres": [
+        "indie"
+      ]
+    },
+    {
+      "name": "Big Thief",
+      "weight": 0.8,
+      "genres": [
+        "folk"
+      ]
+    },
+    {
+      "name": "Mitski",
+      "weight": 0.7,
+      "genres": [
+        "indie"
+      ]
+    },
+    {
+      "name": "Bon Iver",
+      "weight": 0.5,
+      "genres": [
+        "folk"
+      ]
+    },
+    {
+      "name": "SZA",
+      "weight": 0.4,
+      "genres": [
+        "rnb"
+      ]
+    }
+  ],
+  "genres": {
+    "indie": 1.0,
+    "folk": 0.7,
+    "rnb": 0.4
+  }
+}
