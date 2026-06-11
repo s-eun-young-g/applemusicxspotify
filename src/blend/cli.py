@@ -63,10 +63,33 @@ def _cmd_mix(args) -> int:
 
 
 def _cmd_spotify(args) -> int:
-    print("blend: the Spotify reader is the next milestone (M1) and isn't wired "
-          "up yet.\nFor now, blend Apple↔Apple profiles with `blend apple` + "
-          "`blend mix`.", file=sys.stderr)
-    return 1
+    import os
+
+    client_id = args.client_id or os.environ.get("SPOTIFY_CLIENT_ID")
+    if not client_id:
+        print(
+            "blend: need a Spotify client ID (bring your own — it's free).\n"
+            "  1. Create an app at https://developer.spotify.com/dashboard\n"
+            "  2. Add this Redirect URI to the app: http://127.0.0.1:8888/callback\n"
+            "  3. Pass --client-id <id>  (or set SPOTIFY_CLIENT_ID).",
+            file=sys.stderr,
+        )
+        return 2
+
+    from .spotify import read_spotify
+
+    try:
+        profile = read_spotify(client_id, args.user, time_range=args.time_range)
+    except RuntimeError as exc:
+        print(f"blend: {exc}", file=sys.stderr)
+        return 1
+
+    out = args.output or f"{args.user}.json"
+    profile.save(out)
+    print(f"blend: wrote {out}  "
+          f"({len(profile.tracks)} tracks, {len(profile.artists)} artists, "
+          f"{len(profile.genres)} genres)")
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -90,7 +113,14 @@ def main(argv: list[str] | None = None) -> int:
     p_mix.add_argument("-o", "--output", help="write the blend (score + playlist) as JSON")
     p_mix.set_defaults(func=_cmd_mix)
 
-    p_spotify = sub.add_parser("spotify", help="(M1) build a profile from Spotify")
+    p_spotify = sub.add_parser("spotify", help="build a profile from Spotify (OAuth)")
+    p_spotify.add_argument("--user", required=True, help="a name for this profile")
+    p_spotify.add_argument("--client-id", help="your Spotify app client ID "
+                           "(or set SPOTIFY_CLIENT_ID)")
+    p_spotify.add_argument("--time-range", default="medium_term",
+                           choices=["short_term", "medium_term", "long_term"],
+                           help="listening window for 'top' data (default: medium_term)")
+    p_spotify.add_argument("-o", "--output", help="output profile path (default: <user>.json)")
     p_spotify.set_defaults(func=_cmd_spotify)
 
     args = parser.parse_args(argv)

@@ -46,7 +46,9 @@ def test_apple_missing_library_is_reported(tmp_path, capsys):
     assert rc != 0
 
 
-def test_spotify_is_not_yet_available(capsys):
-    rc = main(["spotify"])
-    assert rc == 1
-    assert "M1" in capsys.readouterr().err
+def test_spotify_without_client_id_explains_setup(capsys, monkeypatch):
+    monkeypatch.delenv("SPOTIFY_CLIENT_ID", raising=False)
+    rc = main(["spotify", "--user", "sofia"])
+    assert rc == 2
+    err = capsys.readouterr().err
+    assert "client ID" in err and "127.0.0.1:8888/callback" in err

@@ -11,12 +11,19 @@ from __future__ import annotations
 from .blend import BlendResult, blend
 from .profile import Artist, Profile, Track
 
-__all__ = ["Profile", "Track", "Artist", "blend", "BlendResult", "read_apple"]
+__all__ = ["Profile", "Track", "Artist", "blend", "BlendResult",
+           "read_apple", "read_spotify"]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 def read_apple(path: str, user: str) -> Profile:
     """Convenience: build a Profile from an exported Apple Music library XML."""
     from .apple import read_library
     return read_library(path, user)
+
+
+def read_spotify(client_id: str, user: str, time_range: str = "medium_term") -> Profile:
+    """Convenience: build a Profile from Spotify (runs OAuth on first use)."""
+    from .spotify import read_spotify as _read
+    return _read(client_id, user, time_range=time_range)

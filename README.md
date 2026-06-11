@@ -12,7 +12,10 @@ pip install -e .
 # build a taste profile from your Apple Music library (fully local, no account)
 blend apple --user sofia -o sofia.json
 
-# blend two profiles
+# …or from Spotify (bring your own free client ID — see below)
+blend spotify --user friend --client-id <your-id> -o friend.json
+
+# blend any two profiles — Apple×Apple or Spotify×Apple
 blend mix sofia.json friend.json
 ```
 
@@ -66,15 +69,26 @@ sees profiles, so both platforms — and both blend directions — share one pat
 Export Library…**, or turn on **Music ▸ Settings ▸ Advanced ▸ "Share Library XML
 with other applications"**, then pass `--xml /path/to/Library.xml`.
 
+### Connecting Spotify (bring your own client ID)
+
+Spotify caps new apps at 5 users and reserves unlimited access for registered
+businesses, so instead of one shared app, **each person uses their own free one**:
+
+1. Create an app at <https://developer.spotify.com/dashboard>.
+2. Add this exact Redirect URI: `http://127.0.0.1:8888/callback`.
+3. `blend spotify --user you --client-id <your-id>` (or set `SPOTIFY_CLIENT_ID`).
+
+It opens a browser once, you approve, and the token is cached locally
+(`~/.config/blend/spotify-token.json`) — no client secret, no server, nothing
+leaves your machine. Reads `user-top-read` only.
+
 ## Status & roadmap
 
 - **M0 — Apple×Apple (done):** local library → profile, blend score + playlist,
   CLI, tests.
-- **M1 — Spotify reader:** OAuth (PKCE) → profile. Because Spotify caps new apps
-  at 5 users and reserves unlimited access for registered businesses, this uses a
-  **bring-your-own client ID** model: each person creates their own free Spotify
-  app (one-time, ~2 min) and authorizes locally on a `127.0.0.1` loopback — so
-  there's no shared user cap and no server ever holds anyone's tokens.
+- **M1 — Spotify reader (done):** PKCE loopback OAuth, bring-your-own client ID →
+  the same profile shape, so **Spotify×Apple** blends fall out for free (matched
+  on ISRC + normalized title). No server, no shared user cap, no client secret.
 - **M2 — playlist export:** push the blend to Spotify (`playlist-modify`) and to
   Apple Music (via AppleScript).
 - **M3 — UX:** a small web visualizer for two uploaded profiles.
