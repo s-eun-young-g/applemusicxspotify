@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "blend"
-version = "0.4.0"
+version = "0.5.0"
 description = "A cross-platform music blend for the pairs Spotify won't do — Apple×Apple and Spotify×Apple."
 readme = "README.md"
 requires-python = ">=3.10"

@@ -139,6 +139,36 @@ def create_app(profiles_dir: str = "."):
             return jsonify({"error": str(exc)}), 400
         return jsonify(info)
 
+    @app.post("/api/transfer")
+    def transfer():
+        data = request.get_json(force=True)
+        src, dst = data.get("src"), data.get("dst")
+        playlist = (data.get("playlist") or "").strip()
+        client_id = (data.get("client_id") or "").strip()
+        if not playlist:
+            return jsonify({"error": "a source playlist is required"}), 400
+        if src == dst:
+            return jsonify({"error": "pick two different services"}), 400
+        if not client_id:
+            return jsonify({"error": "a Spotify client ID is required"}), 400
+        from .playlist import apple_to_spotify, spotify_to_apple
+        try:
+            if src == "spotify" and dst == "apple":
+                info = spotify_to_apple(client_id, playlist, new_name=data.get("name") or None)
+            elif src == "apple" and dst == "spotify":
+                from .apple import default_library_path
+                xml = (data.get("xml") or "").strip() or default_library_path()
+                if not xml:
+                    return jsonify({"error": "no Apple Music library XML found"}), 400
+                info = apple_to_spotify(xml, playlist, client_id,
+                                        new_name=data.get("name") or None,
+                                        public=bool(data.get("public")))
+            else:
+                return jsonify({"error": "only spotify↔apple transfers are supported"}), 400
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify(info)
+
     return app
 
 
@@ -266,6 +296,21 @@ _INDEX_HTML = r"""<!doctype html>
     </div>
     <div id="export-msg" class="err"></div>
   </div>
+
+  <div class="card">
+    <h2>Transfer a playlist (Spotify ↔ Apple)</h2>
+    <div class="row">
+      <div><label>From</label><select id="t-from"><option value="spotify">Spotify</option><option value="apple">Apple Music</option></select></div>
+      <div><label>To</label><select id="t-to"><option value="apple">Apple Music</option><option value="spotify">Spotify</option></select></div>
+    </div>
+    <label>Source playlist — its name (Spotify also accepts a link or ID)</label>
+    <input id="t-playlist" placeholder="My Mix">
+    <label>New name (optional)</label>
+    <input id="t-name" placeholder="leave blank for a default">
+    <button class="purple" onclick="transfer()">Transfer</button>
+    <div class="muted">uses the Spotify client ID above</div>
+    <div id="t-msg" class="err"></div>
+  </div>
 </div>
 
 <script>
@@ -349,6 +394,19 @@ async function exportApple() {
   try { const info = await api("/api/export/apple", {...blendBody(), name:$("pl-name").value});
         $("export-msg").className="ok"; $("export-msg").textContent = `created “${info.playlist}” (${info.attempted} tracks attempted)`; }
   catch(e){ $("export-msg").className="err"; $("export-msg").textContent=e.message; }
+}
+
+async function transfer() {
+  $("t-msg").className=""; $("t-msg").textContent="transferring… (Spotify may open a login tab)";
+  try {
+    const info = await api("/api/transfer", {src:$("t-from").value, dst:$("t-to").value,
+      playlist:$("t-playlist").value, name:$("t-name").value, client_id:clientId()});
+    $("t-msg").className="ok";
+    $("t-msg").innerHTML = info.url
+      ? `transferred ${info.source_tracks} tracks — <a href="${info.url}" target="_blank">open in Spotify</a> (${info.added} added, ${info.missed.length} not found)`
+      : `created “${info.playlist}” in Apple Music from ${info.source_tracks} tracks`;
+    loadState();
+  } catch(e){ $("t-msg").className="err"; $("t-msg").textContent = e.message; }
 }
 
 loadState();

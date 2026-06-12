@@ -24,6 +24,10 @@ blend mix sofia.json friend.json third.json
 # …and turn the blend into a real playlist
 blend mix sofia.json friend.json --to-spotify --client-id <your-id>
 blend mix sofia.json friend.json --to-apple        # macOS, into your Music app
+
+# transfer any existing playlist between services (no blending)
+blend transfer --from spotify --to apple --playlist "My Mix" --client-id <your-id>
+blend transfer --from apple --to spotify --playlist "My Mix" --client-id <your-id>
 ```
 
 ```
@@ -204,7 +208,10 @@ sees profiles, so both platforms — and both blend directions — share one pat
 - **M4 — group blend (done):** `blend mix` takes 2+ profiles; 3+ produces a group
   score (mean of pairwise), a pairwise matrix, "liked by everyone," and a group
   playlist that leads with the most-shared tracks. Works in the CLI and web GUI.
-- **M5 — wider reach (ideas):** a packaged double-click Mac app, and/or a free
+- **M5 — playlist transfer (done):** `blend transfer --from … --to …` copies an
+  existing playlist between Spotify and Apple Music (reads the source, resolves
+  each track on the target — ISRC-exact when possible). CLI and web GUI.
+- **M6 — wider reach (ideas):** a packaged double-click Mac app, and/or a free
   static page to drag two `profile.json`s in and share a blend.
 
 ## Why no "audio vibe" blend

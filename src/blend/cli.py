@@ -133,6 +133,51 @@ def _cmd_spotify(args) -> int:
     return 0
 
 
+def _cmd_transfer(args) -> int:
+    import os
+
+    if args.src == args.dst:
+        print("blend: --from and --to must be different services.", file=sys.stderr)
+        return 2
+    client_id = args.client_id or os.environ.get("SPOTIFY_CLIENT_ID")
+    if not client_id:
+        print("blend: transfer needs a Spotify --client-id (or SPOTIFY_CLIENT_ID).",
+              file=sys.stderr)
+        return 2
+
+    if args.src == "spotify" and args.dst == "apple":
+        from .playlist import spotify_to_apple
+        try:
+            info = spotify_to_apple(client_id, args.playlist, new_name=args.name)
+        except RuntimeError as exc:
+            print(f"blend: transfer failed: {exc}", file=sys.stderr)
+            return 1
+        print(f"Apple Music playlist '{info['playlist']}' created from "
+              f"{info['source_tracks']} Spotify tracks.")
+        return 0
+
+    if args.src == "apple" and args.dst == "spotify":
+        from .apple import default_library_path
+        from .playlist import apple_to_spotify
+        xml = args.xml or default_library_path()
+        if not xml or not os.path.exists(xml):
+            print("blend: need the Apple library XML — pass --xml PATH.", file=sys.stderr)
+            return 2
+        try:
+            info = apple_to_spotify(xml, args.playlist, client_id,
+                                    new_name=args.name, public=args.public)
+        except RuntimeError as exc:
+            print(f"blend: transfer failed: {exc}", file=sys.stderr)
+            return 1
+        print(f"Spotify playlist: {info['url']}  "
+              f"({info['added']} added, {len(info['missed'])} not found "
+              f"from {info['source_tracks']} Apple tracks)")
+        return 0
+
+    print("blend: only spotify↔apple transfers are supported.", file=sys.stderr)
+    return 2
+
+
 def _cmd_serve(args) -> int:
     try:
         from .web import serve
@@ -184,6 +229,18 @@ def main(argv: list[str] | None = None) -> int:
                            help="listening window for 'top' data (default: medium_term)")
     p_spotify.add_argument("-o", "--output", help="output profile path (default: <user>.json)")
     p_spotify.set_defaults(func=_cmd_spotify)
+
+    p_xfer = sub.add_parser("transfer", help="copy a playlist between Spotify and Apple Music")
+    p_xfer.add_argument("--from", dest="src", required=True, choices=["spotify", "apple"])
+    p_xfer.add_argument("--to", dest="dst", required=True, choices=["spotify", "apple"])
+    p_xfer.add_argument("--playlist", required=True,
+                        help="source playlist name (Spotify: also accepts a URL/ID)")
+    p_xfer.add_argument("--name", help="name for the new playlist")
+    p_xfer.add_argument("--client-id", help="Spotify client ID (or set SPOTIFY_CLIENT_ID)")
+    p_xfer.add_argument("--xml", help="Apple library XML (for --from apple)")
+    p_xfer.add_argument("--public", action="store_true",
+                        help="make the new Spotify playlist public")
+    p_xfer.set_defaults(func=_cmd_transfer)
 
     p_serve = sub.add_parser("serve", help="launch the local web GUI (no terminal needed)")
     p_serve.add_argument("--port", type=int, default=8000, help="port (default: 8000)")

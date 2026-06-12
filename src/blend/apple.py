@@ -109,3 +109,32 @@ def read_library(path: str, user: str) -> Profile:
     with open(path, "rb") as f:
         data = plistlib.load(f)
     return profile_from_plist(data, user)
+
+
+def playlists_from_plist(data: dict) -> dict[str, list[Track]]:
+    """Map each user playlist name -> its tracks (for transferring out).
+
+    Skips Apple's built-in/system playlists (Library, Music, Downloaded, …),
+    which are flagged with `Master` or a `Distinguished Kind`."""
+    raw = data.get("Tracks", {}) or {}
+    out: dict[str, list[Track]] = {}
+    for pl in data.get("Playlists", []) or []:
+        name = pl.get("Name")
+        if not name or pl.get("Master") or pl.get("Distinguished Kind") is not None:
+            continue
+        tracks: list[Track] = []
+        for item in pl.get("Playlist Items", []) or []:
+            t = raw.get(str(item.get("Track ID")))
+            if t and t.get("Name") and t.get("Artist"):
+                tracks.append(Track(title=t["Name"], artist=t["Artist"],
+                                    album=t.get("Album", "") or "",
+                                    duration_ms=int(t.get("Total Time", 0) or 0)))
+        if tracks:
+            out[name] = tracks
+    return out
+
+
+def read_library_playlists(path: str) -> dict[str, list[Track]]:
+    with open(path, "rb") as f:
+        data = plistlib.load(f)
+    return playlists_from_plist(data)

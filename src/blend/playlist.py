@@ -130,3 +130,41 @@ def apple_create(name: str, entries: list[dict]) -> dict:
 def apple_export(result, name: str | None = None) -> dict:
     """Create an Apple Music playlist from a (pairwise or group) blend result."""
     return apple_create(name or _default_name(result), result.playlist)
+
+
+# ---------------------------------------------------------------------------
+# Transfer a playlist between services (independent of blending).
+# ---------------------------------------------------------------------------
+
+def spotify_to_apple(client_id: str, playlist: str, new_name: str | None = None) -> dict:
+    """Copy a Spotify playlist into Apple Music. `playlist` is a name, URL, or id."""
+    token = sp._valid_token(client_id, sp._SCOPES)
+    pid = sp.resolve_playlist_id(token, playlist)
+    entries = sp.playlist_tracks(token, pid)
+    if not entries:
+        raise RuntimeError("that Spotify playlist has no tracks")
+    info = apple_create(new_name or f"{playlist} (from Spotify)", entries)
+    info["source_tracks"] = len(entries)
+    return info
+
+
+def apple_to_spotify(xml_path: str, playlist_name: str, client_id: str,
+                     new_name: str | None = None, public: bool = False) -> dict:
+    """Copy an Apple Music playlist (from the library XML) onto Spotify."""
+    from .apple import read_library_playlists
+    playlists = read_library_playlists(xml_path)
+    tracks = playlists.get(playlist_name)
+    if tracks is None:                          # case-insensitive fallback
+        for name, ts in playlists.items():
+            if name.lower() == playlist_name.lower():
+                tracks = ts
+                break
+    if not tracks:
+        avail = ", ".join(sorted(playlists)) or "none found"
+        raise RuntimeError(f"no Apple playlist named {playlist_name!r} "
+                           f"(available: {avail})")
+    entries = [{"title": t.title, "artist": t.artist, "isrc": t.isrc} for t in tracks]
+    info = spotify_create(client_id, new_name or f"{playlist_name} (from Apple Music)",
+                          entries, public=public, description="Transferred from Apple Music")
+    info["source_tracks"] = len(entries)
+    return info

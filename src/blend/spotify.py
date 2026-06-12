@@ -30,6 +30,7 @@ import hashlib
 import http.server
 import json
 import os
+import re
 import secrets
 import threading
 import time
@@ -43,8 +44,10 @@ from .profile import Artist, Profile, Track, normalize_weights
 _AUTH_URL = "https://accounts.spotify.com/authorize"
 _TOKEN_URL = "https://accounts.spotify.com/api/token"
 _API = "https://api.spotify.com/v1"
-# One consent covers both reading taste and writing a blend playlist back.
-_SCOPES = "user-top-read playlist-modify-public playlist-modify-private"
+# One consent covers reading taste, reading playlists (to transfer them), and
+# writing a playlist back.
+_SCOPES = ("user-top-read playlist-read-private "
+           "playlist-modify-public playlist-modify-private")
 _DEFAULT_REDIRECT = "http://127.0.0.1:8888/callback"
 _CACHE = os.path.expanduser("~/.config/blend/spotify-token.json")
 
@@ -287,3 +290,53 @@ def read_spotify(client_id: str, user: str, time_range: str = "medium_term") -> 
     token = _valid_token(client_id)
     tracks, artists = fetch_top(token, time_range=time_range)
     return profile_from_spotify(tracks, artists, user)
+
+
+# ---------------------------------------------------------------------------
+# Reading existing playlists (for transfer).
+# ---------------------------------------------------------------------------
+
+_PL_URL = re.compile(r"(?:spotify:playlist:|open\.spotify\.com/playlist/)([A-Za-z0-9]+)")
+_RAW_ID = re.compile(r"^[A-Za-z0-9]{22}$")
+
+
+def list_playlists(token: str, limit: int = 50) -> list[dict]:
+    data = _api_get(token, "/me/playlists", {"limit": limit})
+    return [{"id": it["id"], "name": it["name"]} for it in data.get("items", []) if it]
+
+
+def resolve_playlist_id(token: str, ref: str) -> str:
+    """Accept a playlist URL, URI, raw id, or name → return its id."""
+    ref = ref.strip()
+    m = _PL_URL.search(ref)
+    if m:
+        return m.group(1)
+    if _RAW_ID.match(ref):
+        return ref
+    for pl in list_playlists(token):
+        if pl["name"].strip().lower() == ref.lower():
+            return pl["id"]
+    raise RuntimeError(f"no Spotify playlist named {ref!r} on your account")
+
+
+def playlist_tracks(token: str, playlist_id: str) -> list[dict]:
+    """Return [{title, artist, isrc}] for a playlist, paging through all tracks."""
+    entries: list[dict] = []
+    offset = 0
+    while True:
+        data = _api_get(token, f"/playlists/{playlist_id}/tracks",
+                        {"limit": 100, "offset": offset})
+        items = data.get("items", [])
+        for it in items:
+            t = it.get("track") or {}
+            if not t.get("name") or not t.get("artists"):
+                continue
+            entries.append({
+                "title": t["name"],
+                "artist": t["artists"][0].get("name", ""),
+                "isrc": (t.get("external_ids") or {}).get("isrc"),
+            })
+        if len(items) < 100 or not data.get("next"):
+            break
+        offset += 100
+    return entries

@@ -15,7 +15,7 @@ def client(tmp_path):
     # seed the profiles dir with the bundled examples
     here = __import__("os").path.dirname(__file__)
     ex = __import__("os").path.join(here, "..", "examples")
-    for name in ("alice.json", "bob.json"):
+    for name in ("alice.json", "bob.json", "carol.json"):
         shutil.copy(__import__("os").path.join(ex, name), tmp_path / name)
     app = create_app(str(tmp_path))
     app.config["PROFILES_DIR_TMP"] = str(tmp_path)
@@ -65,3 +65,20 @@ def test_apple_route_errors_without_library(client):
 def test_export_spotify_requires_client_id(client):
     r = client.post("/api/export/spotify", json={"a": "alice", "b": "bob"})
     assert r.status_code == 400
+
+
+def test_group_blend_route(client):
+    r = client.post("/api/blend", json={"profiles": ["alice", "bob", "carol"], "limit": 5})
+    assert r.status_code == 200
+    data = r.get_json()
+    assert data["mode"] == "group"
+    assert data["pairwise"] and len(data["pairwise"]) == 3
+
+
+def test_transfer_route_validates(client):
+    assert client.post("/api/transfer", json={"src": "spotify", "dst": "spotify",
+                                              "playlist": "x", "client_id": "c"}).status_code == 400
+    assert client.post("/api/transfer", json={"src": "spotify", "dst": "apple",
+                                              "playlist": ""}).status_code == 400
+    assert client.post("/api/transfer", json={"src": "spotify", "dst": "apple",
+                                              "playlist": "x"}).status_code == 400  # no client id
