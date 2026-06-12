@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "source": "apple",
+  "user": "carol",
+  "tracks": [
+    {
+      "title": "Motion Sickness",
+      "artist": "Phoebe Bridgers",
+      "album": "",
+      "duration_ms": 0,
+      "isrc": null,
+      "play_count": 0,
+      "weight": 1.0
+    },
+    {
+      "title": "Holocene",
+      "artist": "Bon Iver",
+      "album": "",
+      "duration_ms": 0,
+      "isrc": null,
+      "play_count": 0,
+      "weight": 0.8
+    },
+    {
+      "title": "Nobody",
+      "artist": "Mitski",
+      "album": "",
+      "duration_ms": 0,
+      "isrc": null,
+      "play_count": 0,
+      "weight": 0.6
+    },
+    {
+      "title": "Bloodbuzz Ohio",
+      "artist": "The National",
+      "album": "",
+      "duration_ms": 0,
+      "isrc": null,
+      "play_count": 0,
+      "weight": 0.5
+    }
+  ],
+  "artists": [
+    {
+      "name": "Phoebe Bridgers",
+      "weight": 1.0,
+      "genres": [
+        "indie"
+      ]
+    },
+    {
+      "name": "Bon Iver",
+      "weight": 0.8,
+      "genres": [
+        "folk"
+      ]
+    },
+    {
+      "name": "Mitski",
+      "weight": 0.6,
+      "genres": [
+        "indie"
+      ]
+    },
+    {
+      "name": "The National",
+      "weight": 0.5,
+      "genres": [
+        "indie rock"
+      ]
+    }
+  ],
+  "genres": {
+    "indie": 1.0,
+    "folk": 0.8,
+    "indie rock": 0.5
+  }
+}

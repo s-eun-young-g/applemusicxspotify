@@ -19,12 +19,11 @@ import shutil
 import subprocess
 
 from . import spotify as sp
-from .blend import BlendResult
 
 
-def _default_name(result: BlendResult) -> str:
-    a, b = result.users
-    return f"blend: {a} × {b}"
+def _default_name(result) -> str:
+    people = getattr(result, "users", None) or getattr(result, "members", None) or ["A", "B"]
+    return "blend: " + " × ".join(people)
 
 
 # ---------------------------------------------------------------------------
@@ -45,15 +44,17 @@ def pick_uri(search_json: dict) -> str | None:
     return items[0]["uri"] if items else None
 
 
-def spotify_export(result: BlendResult, client_id: str,
-                   name: str | None = None, public: bool = False) -> dict:
-    """Create a Spotify playlist from the blend. Returns url / added / missed."""
+def spotify_create(client_id: str, name: str, entries: list[dict],
+                   public: bool = False, description: str = "made with blend") -> dict:
+    """Resolve a list of {title, artist, isrc?} on Spotify and create a playlist.
+    Returns url / added / missed. The reusable primitive behind blend export AND
+    playlist transfer."""
     token = sp._valid_token(client_id, sp._SCOPES)
     me = sp._api_get(token, "/me", {})
 
     uris: list[str] = []
     missed: list[str] = []
-    for entry in result.playlist:
+    for entry in entries:
         res = sp._api_get(token, "/search",
                           {"q": search_query(entry), "type": "track", "limit": 1})
         uri = pick_uri(res)
@@ -62,11 +63,8 @@ def spotify_export(result: BlendResult, client_id: str,
         else:
             missed.append(f"{entry['artist']} — {entry['title']}")
 
-    title = name or _default_name(result)
     playlist = sp._api_post(token, f"/users/{me['id']}/playlists", {
-        "name": title,
-        "public": public,
-        "description": f"Compatibility {result.score}/100 — made with blend",
+        "name": name, "public": public, "description": description,
     })
     for i in range(0, len(uris), 100):          # Spotify adds <=100 at a time
         sp._api_post(token, f"/playlists/{playlist['id']}/tracks",
@@ -77,6 +75,14 @@ def spotify_export(result: BlendResult, client_id: str,
         "added": len(uris),
         "missed": missed,
     }
+
+
+def spotify_export(result, client_id: str,
+                   name: str | None = None, public: bool = False) -> dict:
+    """Create a Spotify playlist from a (pairwise or group) blend result."""
+    return spotify_create(
+        client_id, name or _default_name(result), result.playlist, public=public,
+        description=f"Compatibility {result.score}/100 — made with blend")
 
 
 # ---------------------------------------------------------------------------
@@ -108,14 +114,19 @@ def apple_script(name: str, entries: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def apple_export(result: BlendResult, name: str | None = None) -> dict:
-    """Create an Apple Music playlist from the blend via AppleScript (macOS)."""
+def apple_create(name: str, entries: list[dict]) -> dict:
+    """Create an Apple Music playlist from a list of {title, artist} via
+    AppleScript (macOS). The reusable primitive behind blend export AND transfer."""
     if shutil.which("osascript") is None:
         raise RuntimeError("osascript not found — Apple Music export needs macOS.")
-    title = name or _default_name(result)
-    script = apple_script(title, result.playlist)
+    script = apple_script(name, entries)
     proc = subprocess.run(["osascript", "-e", script],
                           capture_output=True, text=True)
     if proc.returncode != 0:
         raise RuntimeError(f"AppleScript failed: {proc.stderr.strip()}")
-    return {"playlist": title, "attempted": len(result.playlist)}
+    return {"playlist": name, "attempted": len(entries)}
+
+
+def apple_export(result, name: str | None = None) -> dict:
+    """Create an Apple Music playlist from a (pairwise or group) blend result."""
+    return apple_create(name or _default_name(result), result.playlist)

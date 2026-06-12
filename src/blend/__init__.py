@@ -8,11 +8,11 @@ profiles blend the same way.
 
 from __future__ import annotations
 
-from .blend import BlendResult, blend
+from .blend import BlendResult, GroupBlendResult, blend, group_blend
 from .profile import Artist, Profile, Track
 
 __all__ = ["Profile", "Track", "Artist", "blend", "BlendResult",
-           "read_apple", "read_spotify"]
+           "group_blend", "GroupBlendResult", "read_apple", "read_spotify"]
 
 __version__ = "0.4.0"
 

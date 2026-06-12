@@ -35,12 +35,16 @@ def create_app(profiles_dir: str = "."):
     def ppath(name: str) -> str:
         return os.path.join(pdir(), f"{os.path.basename(name)}.json")
 
-    def load_two(data):
-        return Profile.load(ppath(data["a"])), Profile.load(ppath(data["b"]))
-
     def computed_blend(data):
-        a, b = load_two(data)
-        return blend_profiles(a, b, limit=int(data.get("limit", 30)))
+        from .blend import group_blend
+        names = data.get("profiles") or [data.get("a"), data.get("b")]
+        profs = [Profile.load(ppath(n)) for n in names if n]
+        if len(profs) < 2:
+            raise ValueError("pick at least two profiles")
+        limit = int(data.get("limit", 30))
+        if len(profs) == 2:
+            return blend_profiles(profs[0], profs[1], limit=limit)
+        return group_blend(profs, limit=limit)
 
     @app.get("/")
     def index():
@@ -97,10 +101,17 @@ def create_app(profiles_dir: str = "."):
 
     @app.post("/api/blend")
     def do_blend():
-        r = computed_blend(request.get_json(force=True))
-        return jsonify({"users": r.users, "score": r.score, "breakdown": r.breakdown,
-                        "shared_artists": r.shared_artists,
-                        "shared_tracks": r.shared_tracks, "playlist": r.playlist})
+        try:
+            r = computed_blend(request.get_json(force=True))
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        if hasattr(r, "users"):                       # pairwise
+            return jsonify({"mode": "pair", "people": list(r.users), "score": r.score,
+                            "bars": r.breakdown, "shared_artists": r.shared_artists,
+                            "pairwise": None, "playlist": r.playlist})
+        return jsonify({"mode": "group", "people": r.members, "score": r.score,
+                        "bars": r.cohesion, "shared_artists": r.shared_by_all,
+                        "pairwise": r.pairwise, "playlist": r.playlist})
 
     @app.post("/api/export/spotify")
     def export_spotify():
@@ -185,6 +196,10 @@ _INDEX_HTML = r"""<!doctype html>
   .bars { display:flex; gap:14px; margin:12px 0 4px; color:var(--mut); font-size:13px; }
   .chips span { display:inline-block; background:#222834; border:1px solid var(--line);
        border-radius:99px; padding:3px 10px; margin:3px 4px 0 0; font-size:13px; }
+  .chk { display:inline-block; background:#222834; border:1px solid var(--line);
+       border-radius:99px; padding:5px 13px; margin:4px 6px 0 0; font-size:13px; cursor:pointer; }
+  .chk input { width:auto; margin-right:7px; vertical-align:middle; }
+  .pw { color:var(--mut); font-size:13px; margin:6px 0; }
   .err { color:#ff8a8a; font-size:13px; margin-top:8px; min-height:18px; }
   .ok  { color:var(--accent); font-size:13px; margin-top:8px; }
   .muted { color:var(--mut); font-size:13px; }
@@ -219,11 +234,10 @@ _INDEX_HTML = r"""<!doctype html>
 
   <div class="card">
     <h2>2 · Blend</h2>
-    <div class="row">
-      <div><label>Profile A</label><select id="sel-a"></select></div>
-      <div><label>Profile B</label><select id="sel-b"></select></div>
-      <div style="max-width:120px"><label>Playlist size</label><input id="limit" type="number" value="30"></div>
-    </div>
+    <label>Pick two or more profiles (3+ makes a group blend)</label>
+    <div id="checklist"></div>
+    <div style="max-width:160px"><label>Playlist size</label>
+      <input id="limit" type="number" value="30"></div>
     <button class="green" onclick="runBlend()">Blend</button>
     <div id="blend-msg" class="err"></div>
   </div>
@@ -232,7 +246,8 @@ _INDEX_HTML = r"""<!doctype html>
     <h2>3 · Your blend</h2>
     <div class="score"><span id="score">0</span><small>/100</small></div>
     <div class="bars" id="bars"></div>
-    <div style="margin-top:10px"><span class="muted">Shared artists:</span>
+    <div id="pairwise"></div>
+    <div style="margin-top:10px"><span class="muted" id="shared-label">Shared artists:</span>
       <div class="chips" id="shared"></div></div>
     <ul class="plist" id="playlist"></ul>
 
@@ -270,15 +285,14 @@ async function loadState() {
   $("profiles").innerHTML = s.profiles.length
     ? s.profiles.map(p=>`<span class="chips"><span>${p.name} · ${p.source} · ${p.tracks} tracks</span></span>`).join("")
     : '<span class="muted">none yet — add one below</span>';
-  for (const sel of [$("sel-a"), $("sel-b")]) {
-    const cur = sel.value;
-    sel.innerHTML = s.profiles.map(p=>`<option value="${p.name}">${p.name} (${p.source})</option>`).join("");
-    if (cur) sel.value = cur;
-  }
-  if (s.profiles.length>1 && !$("sel-b").value) $("sel-b").selectedIndex=1;
+  const checked = new Set(selectedNames());
+  $("checklist").innerHTML = s.profiles.length
+    ? s.profiles.map(p=>`<label class="chk"><input type="checkbox" value="${p.name}" ${checked.has(p.name)?"checked":""}> ${p.name} <span class="muted">${p.source}</span></label>`).join("")
+    : '<span class="muted">add a profile above first</span>';
   if (s.apple_library) $("apple-xml").placeholder = "auto-detected: " + s.apple_library;
   if (localStorage.getItem("cid")) $("spotify-cid").placeholder = "client ID saved ✓";
 }
+function selectedNames(){ return [...document.querySelectorAll('#checklist input:checked')].map(c=>c.value); }
 
 async function addApple() {
   $("add-msg").textContent = "reading library…";
@@ -293,23 +307,32 @@ async function addSpotify() {
   catch(e){ $("add-msg").className="err"; $("add-msg").textContent = e.message; }
 }
 
-function blendBody(){ return {a:$("sel-a").value, b:$("sel-b").value, limit:+$("limit").value}; }
+function blendBody(){ return {profiles:selectedNames(), limit:+$("limit").value}; }
 
 async function runBlend() {
   $("blend-msg").textContent="";
-  if ($("sel-a").value===$("sel-b").value){ $("blend-msg").textContent="pick two different profiles"; return; }
+  if (selectedNames().length < 2){ $("blend-msg").textContent="pick at least two profiles"; return; }
   try {
     const r = await api("/api/blend", blendBody());
     $("result").style.display="block";
     $("score").textContent = r.score;
-    $("bars").innerHTML = `artists ${r.breakdown.artists.toFixed(2)} · genres ${r.breakdown.genres.toFixed(2)} · tracks ${r.breakdown.tracks.toFixed(2)}`;
+    const b = r.bars;
+    $("bars").innerHTML = r.mode==="group"
+      ? `artists ${b.artists.toFixed(2)} · genres ${b.genres.toFixed(2)} (mean of pairs)`
+      : `artists ${b.artists.toFixed(2)} · genres ${b.genres.toFixed(2)} · tracks ${b.tracks.toFixed(2)}`;
+    $("pairwise").innerHTML = r.pairwise
+      ? Object.entries(r.pairwise).sort((a,c)=>c[1]-a[1]).map(([k,v])=>`<div class="pw">${v} · ${k}</div>`).join("")
+      : "";
+    $("shared-label").textContent = r.mode==="group" ? "Liked by everyone:" : "Shared artists:";
     $("shared").innerHTML = (r.shared_artists.slice(0,12).map(a=>`<span>${a}</span>`).join("")) || '<span class="muted">—</span>';
     $("playlist").innerHTML = r.playlist.map(t=>{
-       const heart = t.origin==="shared";
-       const tag = heart ? '<span class="tag heart">both ♥</span>' : `<span class="tag">→ ${t.origin}</span>`;
+       let tag;
+       if (t.origin==="shared"||t.origin==="all") tag='<span class="tag heart">'+(t.origin==="all"?"all ♥":"both ♥")+'</span>';
+       else if (t.members && t.members>1) tag=`<span class="tag">${t.members} share</span>`;
+       else tag=`<span class="tag">→ ${t.origin}</span>`;
        return `<li>${tag}<span>${t.artist} — ${t.title}</span></li>`;
     }).join("");
-    $("pl-name").value = $("pl-name").value || `blend: ${r.users[0]} × ${r.users[1]}`;
+    $("pl-name").value = $("pl-name").value || `blend: ${r.people.join(" × ")}`;
     $("result").scrollIntoView({behavior:"smooth"});
   } catch(e){ $("blend-msg").textContent = e.message; }
 }

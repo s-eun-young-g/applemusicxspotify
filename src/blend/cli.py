@@ -47,20 +47,30 @@ def _cmd_apple(args) -> int:
 def _cmd_mix(args) -> int:
     import os
 
-    a = Profile.load(args.a)
-    b = Profile.load(args.b)
-    result = blend_profiles(a, b, limit=args.limit)
+    from .blend import group_blend
+
+    if len(args.profiles) < 2:
+        print("blend: mix needs at least two profiles.", file=sys.stderr)
+        return 2
+    profiles = [Profile.load(p) for p in args.profiles]
+    if len(profiles) == 2:
+        result = blend_profiles(profiles[0], profiles[1], limit=args.limit)
+    else:
+        result = group_blend(profiles, limit=args.limit)
     print(result.summary())
 
     if args.output:
         import json
+        data = {"score": result.score, "playlist": result.playlist}
+        if hasattr(result, "users"):                 # pairwise
+            data["users"] = list(result.users)
+            data["breakdown"] = result.breakdown
+        else:                                         # group
+            data["members"] = result.members
+            data["pairwise"] = result.pairwise
+            data["cohesion"] = result.cohesion
         with open(args.output, "w", encoding="utf-8") as f:
-            json.dump({
-                "users": list(result.users),
-                "score": result.score,
-                "breakdown": result.breakdown,
-                "playlist": result.playlist,
-            }, f, indent=2, ensure_ascii=False)
+            json.dump(data, f, indent=2, ensure_ascii=False)
         print(f"\nblend: wrote {args.output}")
 
     if args.to_spotify:
@@ -150,9 +160,8 @@ def main(argv: list[str] | None = None) -> int:
     p_apple.add_argument("-o", "--output", help="output profile path (default: <user>.json)")
     p_apple.set_defaults(func=_cmd_apple)
 
-    p_mix = sub.add_parser("mix", help="blend two profiles")
-    p_mix.add_argument("a", help="first profile.json")
-    p_mix.add_argument("b", help="second profile.json")
+    p_mix = sub.add_parser("mix", help="blend two or more profiles")
+    p_mix.add_argument("profiles", nargs="+", help="two or more profile.json files")
     p_mix.add_argument("--limit", type=int, default=30, help="blend playlist size")
     p_mix.add_argument("-o", "--output", help="write the blend (score + playlist) as JSON")
     p_mix.add_argument("--to-spotify", action="store_true",

@@ -18,6 +18,9 @@ blend spotify --user friend --client-id <your-id> -o friend.json
 # blend any two profiles — Apple×Apple or Spotify×Apple
 blend mix sofia.json friend.json
 
+# …or three or more — a group blend (pairwise matrix + group playlist)
+blend mix sofia.json friend.json third.json
+
 # …and turn the blend into a real playlist
 blend mix sofia.json friend.json --to-spotify --client-id <your-id>
 blend mix sofia.json friend.json --to-apple        # macOS, into your Music app
@@ -198,7 +201,10 @@ sees profiles, so both platforms — and both blend directions — share one pat
 - **M3 — local web GUI (done):** `blend serve` — a point-and-click localhost page
   over the same engine (optional `blend[web]` extra). Runs locally, so it keeps
   Apple-library access and the no-cap Spotify loopback login.
-- **M4 — wider reach (ideas):** a packaged double-click Mac app, and/or a free
+- **M4 — group blend (done):** `blend mix` takes 2+ profiles; 3+ produces a group
+  score (mean of pairwise), a pairwise matrix, "liked by everyone," and a group
+  playlist that leads with the most-shared tracks. Works in the CLI and web GUI.
+- **M5 — wider reach (ideas):** a packaged double-click Mac app, and/or a free
   static page to drag two `profile.json`s in and share a blend.
 
 ## Why no "audio vibe" blend
