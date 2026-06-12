@@ -13,3 +13,6 @@ venv/
 /*.json
 profiles/
 !examples/*.json
+
+# personal Apple Music library exports — never commit your library
+*.xml

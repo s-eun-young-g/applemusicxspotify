@@ -23,12 +23,14 @@ import plistlib
 
 from .profile import Artist, Profile, Track, normalize_weights
 
-# Default locations Music writes the shared XML to, newest layout first.
+# Where Music writes the shared XML (newest layout first), plus common names an
+# `Export Library…` might land under in the current directory.
 _DEFAULT_PATHS = [
     "~/Music/Music/Music Library.xml",
     "~/Music/iTunes/iTunes Music Library.xml",
     "~/Music/iTunes/iTunes Library.xml",
 ]
+_CWD_NAMES = ["Library.xml", "Music Library.xml", "iTunes Music Library.xml"]
 
 
 def default_library_path() -> str | None:
@@ -36,6 +38,9 @@ def default_library_path() -> str | None:
         full = os.path.expanduser(p)
         if os.path.exists(full):
             return full
+    for name in _CWD_NAMES:           # an exported XML sitting next to you
+        if os.path.exists(name):
+            return os.path.abspath(name)
     return None
 
 
