@@ -44,12 +44,109 @@ Try it now with the bundled examples:
 blend mix examples/alice.json examples/bob.json
 ```
 
+## Walkthrough: from zero to a blended playlist
+
+### 0. Install (once)
+
+```bash
+git clone https://github.com/s-eun-young-g/applemusicxspotify.git
+cd applemusicxspotify
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .
+```
+
+Every new terminal session, re-activate: `cd applemusicxspotify && source .venv/bin/activate`.
+
+### 1. Make your own profile
+
+Each person needs **one** profile file. Use whichever service you listen on.
+
+**Option A — Apple Music** (local, no account, nothing leaves your Mac):
+
+1. In the Music app, either turn on **Settings (⌘,) ▸ Advanced ▸ "Share Library
+   XML with other applications"**, or use **File ▸ Library ▸ Export Library…** and
+   save `Library.xml` into the project folder.
+2. Build the profile:
+   ```bash
+   blend apple --user sofia
+   ```
+   This writes `sofia.json`. If it can't find the library, point at it directly:
+   ```bash
+   blend apple --user sofia --xml /path/to/Library.xml
+   ```
+
+**Option B — Spotify** (bring your own free client ID):
+
+1. Create an app at <https://developer.spotify.com/dashboard> → **Create app**.
+2. Add this **exact** Redirect URI: `http://127.0.0.1:8888/callback`, check **Web
+   API**, and **Save**.
+3. Copy the **Client ID** from the app's Settings.
+4. Build the profile:
+   ```bash
+   blend spotify --user sofia --client-id YOUR_CLIENT_ID
+   ```
+   A browser opens once → **Agree** → it writes `sofia.json`. The token is cached
+   at `~/.config/blend/spotify-token.json` (no client secret, no server).
+   Tip: `export SPOTIFY_CLIENT_ID=YOUR_CLIENT_ID` to skip the flag from then on.
+
+### 2. Get a second profile
+
+A blend needs **two**. Either:
+
+- **A friend** runs step 1 on their machine and sends you their `name.json`, or
+- **Yourself, cross-platform** — make both an Apple and a Spotify profile and blend
+  them against each other (a fun check of how your two libraries compare):
+  ```bash
+  blend apple   --user me-apple
+  blend spotify --user me-spotify --client-id YOUR_CLIENT_ID
+  ```
+
+Drop both `.json` files in the project folder.
+
+### 3. Blend
+
+```bash
+blend mix sofia.json friend.json
+```
+
+Prints the compatibility score and the blend playlist. `--limit N` sets the size;
+`-o blend.json` saves the result.
+
+### 4. Turn it into a real playlist
+
+**Spotify:**
+```bash
+blend mix sofia.json friend.json --to-spotify --client-id YOUR_CLIENT_ID --name "Our Blend"
+```
+Prints the new playlist's URL and lists any tracks it couldn't find. Add
+`--public` to make it shareable.
+
+**Apple Music** (macOS):
+```bash
+blend mix sofia.json friend.json --to-apple --name "Our Blend"
+```
+The first run asks for permission — **System Settings ▸ Privacy & Security ▸
+Automation ▸ enable Terminal → Music** — then re-run. The playlist appears in your
+Music app. (Only songs already in your library can be added.)
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| "couldn't find an Apple Music library XML" | Pass `--xml /path/to/Library.xml`. Auto-detect checks `~/Music/Music/` and the current folder. |
+| Spotify `INVALID_CLIENT` / redirect mismatch | The app's Redirect URI must be **exactly** `http://127.0.0.1:8888/callback`. |
+| Spotify export 403 | Re-run once — the consent screen now includes playlist permission. |
+| `--to-apple` adds nothing | Those songs aren't in your local library; only owned/library tracks can be added to a Music playlist. |
+
+> **Privacy:** your `Library.xml` and the generated `*.json` profiles are
+> git-ignored — they stay on your machine and won't be committed.
+
 ## How it works
 
 ```
 Apple Music library XML ─┐
                           ├─► profile.json ──► blend(A, B) ──► score + playlist
-Spotify (OAuth) [M1] ────┘     (universal)
+Spotify  (OAuth)  ───────┘     (universal)
 ```
 
 A **profile** is a weighted snapshot of one person's taste (artists, tracks,
@@ -66,25 +163,9 @@ sees profiles, so both platforms — and both blend directions — share one pat
 - **Matching across services** keys on a normalized `artist + title` (stripping
   `feat.`, remaster/version tags, punctuation), with ISRC as a fast path when both
   sides have it.
-
-### Getting your Apple Music XML
-
-`blend apple` auto-finds it if present. To create it: **Music ▸ File ▸ Library ▸
-Export Library…**, or turn on **Music ▸ Settings ▸ Advanced ▸ "Share Library XML
-with other applications"**, then pass `--xml /path/to/Library.xml`.
-
-### Connecting Spotify (bring your own client ID)
-
-Spotify caps new apps at 5 users and reserves unlimited access for registered
-businesses, so instead of one shared app, **each person uses their own free one**:
-
-1. Create an app at <https://developer.spotify.com/dashboard>.
-2. Add this exact Redirect URI: `http://127.0.0.1:8888/callback`.
-3. `blend spotify --user you --client-id <your-id>` (or set `SPOTIFY_CLIENT_ID`).
-
-It opens a browser once, you approve, and the token is cached locally
-(`~/.config/blend/spotify-token.json`) — no client secret, no server, nothing
-leaves your machine. Reads `user-top-read` only.
+- **Why bring-your-own client ID?** Spotify caps a new app at 5 users and reserves
+  unlimited access for registered businesses, so each person uses their own free
+  app and authorizes locally — no shared cap, no server holding anyone's tokens.
 
 ## Status & roadmap
 
