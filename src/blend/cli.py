@@ -123,6 +123,19 @@ def _cmd_spotify(args) -> int:
     return 0
 
 
+def _cmd_serve(args) -> int:
+    try:
+        from .web import serve
+        serve(port=args.port, profiles_dir=args.dir,
+              open_browser=not args.no_browser)
+    except RuntimeError as exc:        # Flask not installed
+        print(f"blend: {exc}", file=sys.stderr)
+        return 2
+    except KeyboardInterrupt:
+        print("\nblend: stopped.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="blend",
@@ -162,6 +175,13 @@ def main(argv: list[str] | None = None) -> int:
                            help="listening window for 'top' data (default: medium_term)")
     p_spotify.add_argument("-o", "--output", help="output profile path (default: <user>.json)")
     p_spotify.set_defaults(func=_cmd_spotify)
+
+    p_serve = sub.add_parser("serve", help="launch the local web GUI (no terminal needed)")
+    p_serve.add_argument("--port", type=int, default=8000, help="port (default: 8000)")
+    p_serve.add_argument("--dir", default=".", help="folder holding profile .json files")
+    p_serve.add_argument("--no-browser", action="store_true",
+                         help="don't auto-open the browser")
+    p_serve.set_defaults(func=_cmd_serve)
 
     args = parser.parse_args(argv)
     return args.func(args)

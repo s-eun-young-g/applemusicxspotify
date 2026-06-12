@@ -44,7 +44,25 @@ Try it now with the bundled examples:
 blend mix examples/alice.json examples/bob.json
 ```
 
-## Walkthrough: from zero to a blended playlist
+## No terminal? Use the web GUI
+
+After installing, one command turns the whole thing into a webpage — read your
+library, connect Spotify, see the blend, make the playlist, all point-and-click:
+
+```bash
+pip install 'blend[web]'
+blend serve            # opens http://127.0.0.1:8000 in your browser
+```
+
+It runs **entirely on your machine** — that's what lets it read your local Apple
+library and keeps Spotify's loopback login working with no shared user cap. The
+browser is just a friendlier front end over the same engine. (You still install
+once and bring your own Spotify client ID — those floors are set by Apple's local
+data and Spotify's policy, not by the UI.)
+
+The rest of this guide covers the equivalent CLI steps.
+
+## Walkthrough: from zero to a blended playlist (CLI)
 
 ### 0. Install (once)
 
@@ -177,7 +195,11 @@ sees profiles, so both platforms — and both blend directions — share one pat
 - **M2 — playlist export (done):** `blend mix … --to-spotify` resolves each track
   (ISRC-exact when possible) and creates a Spotify playlist; `--to-apple`
   generates an AppleScript that builds the playlist from your local Music library.
-- **M3 — UX:** a small web visualizer for two uploaded profiles.
+- **M3 — local web GUI (done):** `blend serve` — a point-and-click localhost page
+  over the same engine (optional `blend[web]` extra). Runs locally, so it keeps
+  Apple-library access and the no-cap Spotify loopback login.
+- **M4 — wider reach (ideas):** a packaged double-click Mac app, and/or a free
+  static page to drag two `profile.json`s in and share a blend.
 
 ## Why no "audio vibe" blend
 
