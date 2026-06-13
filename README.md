@@ -1,10 +1,12 @@
 # blend — Apple Music × Spotify
 
-A music **blend** for the pairs Spotify won't do for you.
+My friends would not stop bullying me for using Apple Music, so I built the thing
+Spotify refuses to: a **blend** for the pairs it leaves out. 🎧
 
-Spotify already blends Spotify×Spotify (its native *Blend*). The gap is everything
-else: **Apple×Apple** (Apple Music has no blend at all) and **Spotify×Apple**
-(cross-platform). This fills it.
+Spotify happily blends Spotify×Spotify (its native *Blend*). The gap is everything
+else — **Apple×Apple** (Apple Music has no blend feature at all) and
+**Spotify×Apple** (cross-platform). This fills it: see who you actually overlap
+with, get a shared playlist, even move existing playlists between the two services.
 
 ```bash
 pip install -e .
@@ -192,7 +194,23 @@ sees profiles, so both platforms — and both blend directions — share one pat
   unlimited access for registered businesses, so each person uses their own free
   app and authorizes locally — no shared cap, no server holding anyone's tokens.
 
-## Status & roadmap
+## Current status (the honest version)
+
+**✅ works & tested** — 48 passing tests, and the Apple side is **confirmed on real
+data**: it read my actual 6,125-track library and 115 of my playlists. The blend
+engine, group blend, playlist transfer logic, and the web GUI all work locally.
+
+**🚧 built but not yet run live** — anything that *writes to Spotify* (logging in
+via OAuth, exporting a blend to Spotify, transferring a playlist *into* Spotify)
+and creating an Apple Music playlist via AppleScript are coded and unit-tested with
+stubs, but I haven't done the full end-to-end run with a real Spotify client ID
+yet. So treat those as "should work, pending a real-world smoke test."
+
+**💡 ideas / where it's headed** — a free "drag two `profile.json`s in and see your
+blend" web page, a double-click Mac app so non-terminal friends can use it, and
+more Wrapped-style stats.
+
+### How it got here
 
 - **M0 — Apple×Apple (done):** local library → profile, blend score + playlist,
   CLI, tests.
